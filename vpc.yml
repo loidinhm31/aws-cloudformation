@@ -77,6 +77,13 @@ Resources:
       DestinationCidrBlock: "0.0.0.0/0"
       GatewayId: !Ref EC2InternetGateway
       RouteTableId: !Ref EC2RouteTable
+  
+  EC2Route2:
+    Type: "AWS::EC2::Route"
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref EC2InternetGateway
+      RouteTableId: !Ref EC2RouteTable2
 
   EC2VPCGatewayAttachment:
     Type: "AWS::EC2::VPCGatewayAttachment"
@@ -93,7 +100,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: "Name"
-          Value: !Sub "cloud-asm-subnet-public-${AWS::Region}a"
+          Value: !Sub "cloud-asm1-subnet-public-${AWS::Region}a"
   EC2Subnet2:
     Type: "AWS::EC2::Subnet"
     Properties:
@@ -103,7 +110,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: "Name"
-          Value: !Sub "cloud-asm-subnet-public-${AWS::Region}b"
+          Value: !Sub "cloud-asm1-subnet-public-${AWS::Region}b"
 
   EC2SubnetNetworkAclAssociation:
     Type: "AWS::EC2::SubnetNetworkAclAssociation"
