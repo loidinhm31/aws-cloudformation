@@ -11,16 +11,14 @@ Resources:
       EnableDnsHostnames: true
       InstanceTenancy: "default"
       Tags:
-        -
-          Key: "Name"
+        - Key: "Name"
           Value: "cloud-asm1-vpc"
 
   EC2InternetGateway:
     Type: "AWS::EC2::InternetGateway"
     Properties:
       Tags:
-        -
-          Key: "Name"
+        - Key: "Name"
           Value: "cloud-asm1-igw"
 
   EC2DHCPOptions:
@@ -58,8 +56,7 @@ Resources:
     Properties:
       VpcId: !Ref EC2VPC
       Tags:
-        -
-          Key: "Name"
+        - Key: "Name"
           Value: !Sub "cloud-asm1-rtb-public1-${AWS::Region}a"
 
   EC2RouteTable2:
@@ -67,8 +64,7 @@ Resources:
     Properties:
       VpcId: !Ref EC2VPC
       Tags:
-        -
-          Key: "Name"
+        - Key: "Name"
           Value: !Sub "cloud-asm1-rtb-public2-${AWS::Region}b"
 
   EC2Route:
@@ -101,6 +97,7 @@ Resources:
       Tags:
         - Key: "Name"
           Value: !Sub "cloud-asm1-subnet-public-${AWS::Region}a"
+
   EC2Subnet2:
     Type: "AWS::EC2::Subnet"
     Properties:
@@ -140,19 +137,119 @@ Resources:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
       GroupDescription: "Access HTTP"
-      GroupName: "ASM1SecurityGroup"
+      GroupName: "asm1-security-group"
       Tags:
-        -
-          Key: "Name"
-          Value: "ASM1SecurityGroup"
+        - Key: "Name"
+          Value: "asm1-security-group"
       VpcId: !Ref EC2VPC
       SecurityGroupIngress:
-        -
-          CidrIp: "0.0.0.0/0"
+        - CidrIp: "0.0.0.0/0"
           FromPort: 80
           IpProtocol: "tcp"
           ToPort: 80
       SecurityGroupEgress:
-        -
-          CidrIp: "0.0.0.0/0"
+        - CidrIp: "0.0.0.0/0"
           IpProtocol: "-1"
+
+  EC2SecurityGroup2:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Allow SSH and HTTP requests"
+      GroupName: "asm1-instance-sg"
+      VpcId: !Ref EC2VPC
+      SecurityGroupIngress:
+        - CidrIp: "0.0.0.0/0"
+          FromPort: 80
+          IpProtocol: "tcp"
+          ToPort: 80
+        - CidrIp: "0.0.0.0/0"
+          FromPort: 22
+          IpProtocol: "tcp"
+          ToPort: 22
+      SecurityGroupEgress:
+        - CidrIp: "0.0.0.0/0"
+          IpProtocol: "-1"
+
+  SNSTopic:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      DisplayName: ""
+      TopicName: "asm1-sns"
+
+  SNSTopicPolicy:
+    Type: "AWS::SNS::TopicPolicy"
+    Properties:
+      PolicyDocument: !Sub "{\"Version\":\"2008-10-17\",\"Id\":\"__default_policy_ID\",\"Statement\":[{\"Sid\":\"__default_statement_ID\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"*\"},\"Action\":[\"SNS:GetTopicAttributes\",\"SNS:SetTopicAttributes\",\"SNS:AddPermission\",\"SNS:RemovePermission\",\"SNS:DeleteTopic\",\"SNS:Subscribe\",\"SNS:ListSubscriptionsByTopic\",\"SNS:Publish\"],\"Resource\":\"${SNSTopic}\",\"Condition\":{\"StringEquals\":{\"AWS:SourceOwner\":\"${AWS::AccountId}\"}}}]}"
+      Topics:
+        - !Ref SNSTopic
+  SNSSubscription:
+    Type: "AWS::SNS::Subscription"
+    Properties:
+      TopicArn: !Ref SNSTopic
+      Endpoint: "loidinh.git@gmail.com"
+      Protocol: "email"
+      Region: !Ref AWS::Region
+
+  EC2LaunchTemplate:
+    Type: "AWS::EC2::LaunchTemplate"
+    Properties:
+      LaunchTemplateName: "asm1-lauch-template"
+      LaunchTemplateData:
+        UserData: "IyEvYmluL2Jhc2gKc3VkbyBhbWF6b24tbGludXgtZXh0cmFzIGluc3RhbGwgZXBlbCAteQp5dW0gaW5zdGFsbCBodHRwZCAteQpzZXJ2aWNlIGh0dHBkIHN0YXJ0CmNoa2NvbmZpZyBodHRwZCBvbgoKZWNobyAiPGh0bWw+PGgxPkNsb3VkIEFzc2lnbm1lbnQ8L2gxPjwvaHRtbD4iID4gL3Zhci93d3cvaHRtbC9pbmRleC5odG1s"
+        KeyName: "vockey"
+        NetworkInterfaces:
+          - DeviceIndex: 0
+            Groups:
+              - !Ref EC2SecurityGroup2
+        ImageId: "ami-008677ef1baf82eaf"
+        InstanceType: "t2.micro"
+        Monitoring:
+          Enabled: true
+
+  ElasticLoadBalancingV2TargetGroup:
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: "/index.html"
+      Port: 80
+      Protocol: "HTTP"
+      HealthCheckPort: "traffic-port"
+      HealthCheckProtocol: "HTTP"
+      HealthCheckTimeoutSeconds: 5
+      UnhealthyThresholdCount: 2
+      TargetType: "instance"
+      Matcher:
+        HttpCode: "200"
+      HealthyThresholdCount: 5
+      VpcId: !Ref EC2VPC
+      Name: "asm1-target-group"
+      HealthCheckEnabled: true
+      TargetGroupAttributes:
+        - Key: "target_group_health.unhealthy_state_routing.minimum_healthy_targets.percentage"
+          Value: "off"
+        - Key: "deregistration_delay.timeout_seconds"
+          Value: "300"
+        - Key: "stickiness.type"
+          Value: "lb_cookie"
+        - Key: "stickiness.lb_cookie.duration_seconds"
+          Value: "86400"
+        - Key: "slow_start.duration_seconds"
+          Value: "0"
+        - Key: "stickiness.app_cookie.duration_seconds"
+          Value: "86400"
+        - Key: "target_group_health.dns_failover.minimum_healthy_targets.percentage"
+          Value: "off"
+        - Key: "load_balancing.cross_zone.enabled"
+          Value: "use_load_balancer_configuration"
+        - Key: "load_balancing.algorithm.type"
+          Value: "round_robin"
+        - Key: "target_group_health.unhealthy_state_routing.minimum_healthy_targets.count"
+          Value: "1"
+        - Key: "stickiness.enabled"
+          Value: "false"
+        - Key: "target_group_health.dns_failover.minimum_healthy_targets.count"
+          Value: "1"
+        - Key: "load_balancing.algorithm.anomaly_mitigation"
+          Value: "off"
+        - Key: "stickiness.app_cookie.cookie_name"
+          Value: ""
