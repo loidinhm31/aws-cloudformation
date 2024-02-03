@@ -1,7 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Metadata:
-  Generator: "former2"
 Description: ""
+
 Resources:
   EC2VPC:
     Type: "AWS::EC2::VPC"
@@ -90,7 +89,7 @@ Resources:
     Properties:
       GroupDescription: "Allow SSH and HTTP requests"
       GroupName: "asm2-ec2-sg"
-      VpcId: !Ref EC2VPC3
+      VpcId: !Ref EC2VPC
       SecurityGroupIngress:
         - CidrIp: "0.0.0.0/0"
           FromPort: 80
@@ -107,7 +106,7 @@ Resources:
   RDSDBInstance:
     Type: "AWS::RDS::DBInstance"
     Properties:
-      DBInstanceIdentifier: "database-asm2"
+      DBInstanceIdentifier: "database-asm2-1"
       AllocatedStorage: 20
       DBInstanceClass: "db.t2.micro"
       Engine: "mysql"
@@ -133,7 +132,7 @@ Resources:
       DeletionProtection: false
       DBSubnetGroupName: "asm2-subnet-group"
       VPCSecurityGroups:
-        - "sg-089f9aa8eab369406"
+        - !Ref EC2SecurityGroup
       MaxAllocatedStorage: 1000
       DBParameterGroupName: "default.mysql8.0"
       OptionGroupName: "default:mysql-8-0"
