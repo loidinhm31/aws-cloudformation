@@ -34,11 +34,6 @@ Resources:
       InternetGatewayId: !Ref EC2InternetGateway
       VpcId: !Ref EC2VPC
 
-  EC2DHCPOptions:
-    Type: AWS::EC2::DHCPOptions
-    Properties:
-      DomainName: !Sub ${AWS::Region}.compute.internal
-
   ###########
   # Public Route Table
   ###########
