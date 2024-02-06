@@ -1,0 +1,138 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: This template allows deploys an ec2 host.
+
+Parameters:
+  AmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64'
+
+Resources:
+  EC2VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: cloud-asm1-vpc
+
+  EC2InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: cloud-asm1-igw
+
+  EC2VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    DependsOn:
+      - EC2InternetGateway
+      - EC2VPC
+    Properties:
+      InternetGatewayId: !Ref EC2InternetGateway
+      VpcId: !Ref EC2VPC
+
+  ###########
+  # Public Route Table
+  ###########
+
+  EC2RouteTable2:
+    Type: AWS::EC2::RouteTable
+    DependsOn: EC2VPC
+    Properties:
+      VpcId: !Ref EC2VPC
+      Tags:
+        - Key: Name
+          Value: !Sub cloud-asm1-rtb-public1-${AWS::Region}a
+
+  EC2Route2:
+    Type: AWS::EC2::Route
+    DependsOn:
+      - EC2RouteTable2
+      - EC2VPCGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref EC2InternetGateway
+      RouteTableId: !Ref EC2RouteTable2
+
+  ###########
+  # Public Subnet
+  ###########
+
+  EC2Subnet2:
+    Type: AWS::EC2::Subnet
+    DependsOn: EC2VPC
+    Properties:
+      VpcId: !Ref EC2VPC
+      CidrBlock: 10.0.0.0/24
+      AvailabilityZone: !Sub ${AWS::Region}a
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub cloud-asm1-subnet-public-${AWS::Region}a
+
+  EC2SubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn:
+      - EC2RouteTable2
+      - EC2Subnet2
+    Properties:
+      RouteTableId: !Ref EC2RouteTable2
+      SubnetId: !Ref EC2Subnet2
+
+  ###########
+  # Security Group Ec2SecurityGroup
+  ###########
+
+  EC2SecurityGroup2:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH and HTTP requests
+      GroupName: asm1-instance-sg
+      VpcId: !Ref EC2VPC
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+        - CidrIp: 0.0.0.0/0
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1
+
+  ###########
+  # EC2 Work Instance
+  ###########
+
+  # Creates an instance.
+  LabInstance:
+    Type: AWS::EC2::Instance
+    DependsOn:
+      - EC2SubnetRouteTableAssociation2
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: t2.micro
+      KeyName: vockey
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true  # Optional as the subnet already has a public IP assigned.
+          DeviceIndex: 0
+          GroupSet:
+            - Ref: EC2SecurityGroup2
+          SubnetId: !Ref 'EC2Subnet2'
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -ex
+          sudo su
+          dnf install httpd -y
+          service httpd start
+          chkconfig httpd on
+
+          echo "<html><h1>Cloud Assignment</h1></html>" > /var/www/html/index.html
+      Tags:
+        - Key: Name
+          Value: Lab Instance
