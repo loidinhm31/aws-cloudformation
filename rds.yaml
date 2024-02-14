@@ -1,128 +1,127 @@
-AWSTemplateFormatVersion: "2010-09-09"
-Description: ""
+AWSTemplateFormatVersion: 2010-09-09
 
 Resources:
   EC2VPC:
-    Type: "AWS::EC2::VPC"
+    Type: AWS::EC2::VPC
     Properties:
-      CidrBlock: "10.0.0.0/16"
+      CidrBlock: 10.0.0.0/16
       EnableDnsSupport: true
       EnableDnsHostnames: true
-      InstanceTenancy: "default"
+      InstanceTenancy: default
       Tags:
-        - Key: "Name"
-          Value: "asm2-vpc"
+        - Key: Name
+          Value: asm2-vpc
 
   EC2Subnet:
-    Type: "AWS::EC2::Subnet"
+    Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: !Sub "${AWS::Region}a"
-      CidrBlock: "10.0.1.0/24"
+      AvailabilityZone: !Sub  ${AWS::Region}a
+      CidrBlock: 10.0.1.0/24
       VpcId: !Ref EC2VPC
       MapPublicIpOnLaunch: false
       Tags:
-        - Key: "Name"
-          Value: "asm2-public-subnet"
+        - Key: Name
+          Value: asm2-public-subnet
 
   EC2Subnet2:
-    Type: "AWS::EC2::Subnet"
+    Type: AWS::EC2::Subnet
     Properties:
-      AvailabilityZone: !Sub "${AWS::Region}b"
-      CidrBlock: "10.0.0.0/24"
+      AvailabilityZone: !Sub  ${AWS::Region}b
+      CidrBlock: 10.0.0.0/24
       VpcId: !Ref EC2VPC
       MapPublicIpOnLaunch: false
       Tags:
-        - Key: "Name"
-          Value: "asm2-private-subnet"
+        - Key: Name
+          Value: asm2-private-subnet
 
   EC2InternetGateway:
-    Type: "AWS::EC2::InternetGateway"
+    Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
-        - Key: "Name"
-          Value: "asm2-internet-gateway"
+        - Key: Name
+          Value: asm2-internet-gateway
 
   EC2RouteTable:
-    Type: "AWS::EC2::RouteTable"
+    Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref EC2VPC
       Tags:
-        - Key: "Name"
-          Value: "asm2-rtb"
+        - Key: Name
+          Value: asm2-rtb
 
   EC2Route:
-    Type: "AWS::EC2::Route"
+    Type: AWS::EC2::Route
     Properties:
-      DestinationCidrBlock: "0.0.0.0/0"
+      DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref EC2InternetGateway
       RouteTableId: !Ref EC2RouteTable
 
   EC2VPCGatewayAttachment:
-    Type: "AWS::EC2::VPCGatewayAttachment"
+    Type: AWS::EC2::VPCGatewayAttachment
     Properties:
       InternetGatewayId: !Ref EC2InternetGateway
       VpcId: !Ref EC2VPC
 
   EC2SubnetRouteTableAssociation:
-    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref EC2RouteTable
       SubnetId: !Ref EC2Subnet
 
   EC2SecurityGroup:
-    Type: "AWS::EC2::SecurityGroup"
+    Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: "Allow connection to database"
-      GroupName: "asm2-rds-sg"
+      GroupDescription: Allow connection to database
+      GroupName: asm2-rds-sg
       VpcId: !Ref EC2VPC
       SecurityGroupIngress:
-        - CidrIp: "0.0.0.0/0"
+        - CidrIp: 0.0.0.0/0
           FromPort: 3306
-          IpProtocol: "tcp"
+          IpProtocol: tcp
           ToPort: 3306
       SecurityGroupEgress:
-        - CidrIp: "0.0.0.0/0"
-          IpProtocol: "-1"
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1
 
   EC2SecurityGroup2:
-    Type: "AWS::EC2::SecurityGroup"
+    Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: "Allow SSH and HTTP requests"
-      GroupName: "asm2-ec2-sg"
+      GroupDescription: Allow SSH and HTTP requests
+      GroupName: asm2-ec2-sg
       VpcId: !Ref EC2VPC
       SecurityGroupIngress:
-        - CidrIp: "0.0.0.0/0"
+        - CidrIp: 0.0.0.0/0
           FromPort: 80
-          IpProtocol: "tcp"
+          IpProtocol: tcp
           ToPort: 80
-        - CidrIp: "0.0.0.0/0"
+        - CidrIp: 0.0.0.0/0
           FromPort: 22
-          IpProtocol: "tcp"
+          IpProtocol: tcp
           ToPort: 22
       SecurityGroupEgress:
-        - CidrIp: "0.0.0.0/0"
-          IpProtocol: "-1"
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1
 
   RDSDBInstance:
-    Type: "AWS::RDS::DBInstance"
+    Type: AWS::RDS::DBInstance
     Properties:
-      DBInstanceIdentifier: "database-asm2-1"
+      DBInstanceIdentifier: database-asm2-1
       AllocatedStorage: 20
-      DBInstanceClass: "db.t2.micro"
-      Engine: "mysql"
-      MasterUsername: "admin"
-      MasterUserPassword: "REPLACEME"
-      DBName: "asm2"
-      PreferredBackupWindow: "06:04-06:34"
+      DBInstanceClass: db.t2.micro
+      Engine: mysql
+      MasterUsername: admin
+      MasterUserPassword: REPLACEME
+      DBName: asm2
+      PreferredBackupWindow: 06:04-06:34
       BackupRetentionPeriod: 1
       AvailabilityZone: !GetAtt EC2Subnet2.AvailabilityZone
-      PreferredMaintenanceWindow: "wed:05:24-wed:05:54"
+      PreferredMaintenanceWindow: wed:05:24-wed:05:54
       MultiAZ: false
-      EngineVersion: "8.0.35"
+      EngineVersion: 8.0.35
       AutoMinorVersionUpgrade: true
-      LicenseModel: "general-public-license"
+      LicenseModel: general-public-license
       PubliclyAccessible: true
-      StorageType: "gp2"
+      StorageType: gp2
       Port: 3306
       StorageEncrypted: false
       CopyTagsToSnapshot: true
@@ -130,19 +129,19 @@ Resources:
       EnableIAMDatabaseAuthentication: false
       EnablePerformanceInsights: false
       DeletionProtection: false
-      DBSubnetGroupName: "asm2-subnet-group"
+      DBSubnetGroupName: asm2-subnet-group
       VPCSecurityGroups:
         - !Ref EC2SecurityGroup
       MaxAllocatedStorage: 1000
-      DBParameterGroupName: "default.mysql8.0"
-      OptionGroupName: "default:mysql-8-0"
-      CACertificateIdentifier: "rds-ca-2019"
+      DBParameterGroupName: default.mysql8.0
+      OptionGroupName: default:mysql-8-0
+      CACertificateIdentifier: rds-ca-2019
 
   RDSDBSubnetGroup:
-    Type: "AWS::RDS::DBSubnetGroup"
+    Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupDescription: "ASM2 Subnet Group"
-      DBSubnetGroupName: "asm2-subnet-group"
+      DBSubnetGroupDescription: ASM2 Subnet Group
+      DBSubnetGroupName: asm2-subnet-group
       SubnetIds:
         - !Ref EC2Subnet
         - !Ref EC2Subnet2
