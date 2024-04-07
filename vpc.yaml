@@ -38,25 +38,6 @@ Resources:
   # Public Route Table
   ###########
 
-  EC2RouteTable:
-    Type: AWS::EC2::RouteTable
-    DependsOn: EC2VPC
-    Properties:
-      VpcId: !Ref EC2VPC
-      Tags:
-        - Key: Name
-          Value: !Sub cloud-asm1-rtb-public1-${AWS::Region}a
-
-  EC2Route:
-    Type: AWS::EC2::Route
-    DependsOn:
-      - EC2RouteTable
-      - EC2VPCGatewayAttachment
-    Properties:
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref EC2InternetGateway
-      RouteTableId: !Ref EC2RouteTable
-
   EC2RouteTable2:
     Type: AWS::EC2::RouteTable
     DependsOn: EC2VPC
@@ -64,9 +45,9 @@ Resources:
       VpcId: !Ref EC2VPC
       Tags:
         - Key: Name
-          Value: !Sub cloud-asm1-rtb-public2-${AWS::Region}b
+          Value: !Sub cloud-asm1-rtb-public1-${AWS::Region}b
 
-  EC2Route2:
+  EC2Route:
     Type: AWS::EC2::Route
     DependsOn:
       - EC2RouteTable2
@@ -75,6 +56,25 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref EC2InternetGateway
       RouteTableId: !Ref EC2RouteTable2
+
+  EC2RouteTable:
+    Type: AWS::EC2::RouteTable
+    DependsOn: EC2VPC
+    Properties:
+      VpcId: !Ref EC2VPC
+      Tags:
+        - Key: Name
+          Value: !Sub cloud-asm1-rtb-public2-${AWS::Region}a
+
+  EC2Route2:
+    Type: AWS::EC2::Route
+    DependsOn:
+      - EC2RouteTable
+      - EC2VPCGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref EC2InternetGateway
+      RouteTableId: !Ref EC2RouteTable
 
 
   ###########
@@ -96,10 +96,10 @@ Resources:
   EC2SubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     DependsOn:
-      - EC2RouteTable
+      - EC2RouteTable2
       - EC2Subnet
     Properties:
-      RouteTableId: !Ref EC2RouteTable
+      RouteTableId: !Ref EC2RouteTable2
       SubnetId: !Ref EC2Subnet
 
   EC2Subnet2:
@@ -117,10 +117,10 @@ Resources:
   EC2SubnetRouteTableAssociation2:
     Type: AWS::EC2::SubnetRouteTableAssociation
     DependsOn:
-      - EC2RouteTable2
+      - EC2RouteTable
       - EC2Subnet2
     Properties:
-      RouteTableId: !Ref EC2RouteTable2
+      RouteTableId: !Ref EC2RouteTable
       SubnetId: !Ref EC2Subnet2
 
   ###########
@@ -184,7 +184,7 @@ Resources:
     Type: AWS::SNS::Subscription
     Properties:
       TopicArn: !Ref SNSTopic
-      Endpoint: loidinh.git@gmail.com
+      Endpoint: loidpfx05556@funix.edu.com
       Protocol: email
       Region: !Ref AWS::Region
 
@@ -204,7 +204,7 @@ Resources:
             dnf install httpd -y
             service httpd start
             chkconfig httpd on
-            
+
             echo "<html><h1>Cloud Assignment</h1></html>" > /var/www/html/index.html
         KeyName: "vockey"
         NetworkInterfaces:
@@ -217,11 +217,64 @@ Resources:
           Enabled: true
 
   ###########
+  # Target Group
+  ###########
+
+  ElasticLoadBalancingV2TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: /index.html
+      Port: 80
+      Protocol: HTTP
+      HealthCheckPort: traffic-port
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      UnhealthyThresholdCount: 2
+      TargetType: instance
+      Matcher:
+        HttpCode: 200
+      HealthyThresholdCount: 5
+      VpcId: !Ref EC2VPC
+      Name: asm1-target-group
+      HealthCheckEnabled: true
+      TargetGroupAttributes:
+        - Key: target_group_health.unhealthy_state_routing.minimum_healthy_targets.percentage
+          Value: "off"
+        - Key: deregistration_delay.timeout_seconds
+          Value: 300
+        - Key: stickiness.type
+          Value: "lb_cookie"
+        - Key: stickiness.lb_cookie.duration_seconds
+          Value: 86400
+        - Key: slow_start.duration_seconds
+          Value: 0
+        - Key: stickiness.app_cookie.duration_seconds
+          Value: 86400
+        - Key: target_group_health.dns_failover.minimum_healthy_targets.percentage
+          Value: "off"
+        - Key: load_balancing.cross_zone.enabled
+          Value: use_load_balancer_configuration
+        - Key: load_balancing.algorithm.type
+          Value: "round_robin"
+        - Key: target_group_health.unhealthy_state_routing.minimum_healthy_targets.count
+          Value: 1
+        - Key: stickiness.enabled
+          Value: "false"
+        - Key: target_group_health.dns_failover.minimum_healthy_targets.count
+          Value: 1
+        - Key: load_balancing.algorithm.anomaly_mitigation
+          Value: "off"
+
+  ###########
   # Load Balancer
   ###########
 
   ElasticLoadBalancingV2LoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    DependsOn:
+      - ElasticLoadBalancingV2TargetGroup
+      - EC2VPCGatewayAttachment
     Properties:
       Name: asm1-alb
       Scheme: internet-facing
@@ -269,52 +322,6 @@ Resources:
       DefaultActions:
         - TargetGroupArn: !Ref ElasticLoadBalancingV2TargetGroup
           Type: forward
-
-  ElasticLoadBalancingV2TargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      HealthCheckIntervalSeconds: 30
-      HealthCheckPath: /index.html
-      Port: 80
-      Protocol: HTTP
-      HealthCheckPort: traffic-port
-      HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 5
-      UnhealthyThresholdCount: 2
-      TargetType: instance
-      Matcher:
-        HttpCode: 200
-      HealthyThresholdCount: 5
-      VpcId: !Ref EC2VPC
-      Name: asm1-target-group
-      HealthCheckEnabled: true
-      TargetGroupAttributes:
-        - Key: target_group_health.unhealthy_state_routing.minimum_healthy_targets.percentage
-          Value: "off"
-        - Key: deregistration_delay.timeout_seconds
-          Value: 300
-        - Key: stickiness.type
-          Value: "lb_cookie"
-        - Key: stickiness.lb_cookie.duration_seconds
-          Value: 86400
-        - Key: slow_start.duration_seconds
-          Value: 0
-        - Key: stickiness.app_cookie.duration_seconds
-          Value: 86400
-        - Key: target_group_health.dns_failover.minimum_healthy_targets.percentage
-          Value: "off"
-        - Key: load_balancing.cross_zone.enabled
-          Value: use_load_balancer_configuration
-        - Key: load_balancing.algorithm.type
-          Value: "round_robin"
-        - Key: target_group_health.unhealthy_state_routing.minimum_healthy_targets.count
-          Value: 1
-        - Key: stickiness.enabled
-          Value: "false"
-        - Key: target_group_health.dns_failover.minimum_healthy_targets.count
-          Value: 1
-        - Key: load_balancing.algorithm.anomaly_mitigation
-          Value: "off"
 
   ###########
   # Auto Scaling Group
