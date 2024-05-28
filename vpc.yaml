@@ -5,6 +5,9 @@ Parameters:
   AmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64'
+  EmailAddress:
+    Type: String
+    Description: Email Address to receive notifications
 
 Resources:
   EC2VPC:
@@ -179,7 +182,29 @@ Resources:
   SNSTopicPolicy:
     Type: AWS::SNS::TopicPolicy
     Properties:
-      PolicyDocument: !Sub "{\"Version\":\"2008-10-17\",\"Id\":\"__default_policy_ID\",\"Statement\":[{\"Sid\":\"__default_statement_ID\",\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"*\"},\"Action\":[\"SNS:GetTopicAttributes\",\"SNS:SetTopicAttributes\",\"SNS:AddPermission\",\"SNS:RemovePermission\",\"SNS:DeleteTopic\",\"SNS:Subscribe\",\"SNS:ListSubscriptionsByTopic\",\"SNS:Publish\"],\"Resource\":\"${SNSTopic}\",\"Condition\":{\"StringEquals\":{\"AWS:SourceOwner\":\"${AWS::AccountId}\"}}}]}"
+      PolicyDocument: !Sub "{
+      \"Version\":\"2008-10-17\",
+      \"Id\":\"__default_policy_ID\",
+      \"Statement\":[
+        {\"Sid\":\"__default_statement_ID\",
+        \"Effect\":\"Allow\",
+        \"Principal\":{\"AWS\":\"*\"},
+        \"Action\":[
+          \"SNS:GetTopicAttributes\",
+          \"SNS:SetTopicAttributes\",
+          \"SNS:AddPermission\",
+          \"SNS:RemovePermission\",
+          \"SNS:DeleteTopic\",
+          \"SNS:Subscribe\",
+          \"SNS:ListSubscriptionsByTopic\",
+          \"SNS:Publish\"],
+        \"Resource\":\"${SNSTopic}\",
+        \"Condition\":{
+          \"StringEquals\":{
+            \"AWS:SourceOwner\":\"${AWS::AccountId}\"}
+          }
+        }
+      ]}"
       Topics:
         - !Ref SNSTopic
 
@@ -187,7 +212,7 @@ Resources:
     Type: AWS::SNS::Subscription
     Properties:
       TopicArn: !Ref SNSTopic
-      Endpoint: loidpfx05556@funix.edu.com
+      Endpoint: !Ref EmailAddress
       Protocol: email
       Region: !Ref AWS::Region
 
