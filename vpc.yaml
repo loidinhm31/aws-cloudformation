@@ -38,71 +38,53 @@ Resources:
   # Public Route Table
   ###########
 
-  EC2RouteTable2:
-    Type: AWS::EC2::RouteTable
-    DependsOn: EC2VPC
-    Properties:
-      VpcId: !Ref EC2VPC
-      Tags:
-        - Key: Name
-          Value: !Sub cloud-asm1-rtb-public1-${AWS::Region}b
-
-  EC2Route:
-    Type: AWS::EC2::Route
-    DependsOn:
-      - EC2RouteTable2
-      - EC2VPCGatewayAttachment
-    Properties:
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref EC2InternetGateway
-      RouteTableId: !Ref EC2RouteTable2
-
   EC2RouteTable:
     Type: AWS::EC2::RouteTable
-    DependsOn: EC2VPC
+    DependsOn:
+      - EC2VPC
     Properties:
       VpcId: !Ref EC2VPC
       Tags:
         - Key: Name
           Value: !Sub cloud-asm1-rtb-public2-${AWS::Region}a
 
-  EC2Route2:
+  EC2Route:
     Type: AWS::EC2::Route
     DependsOn:
-      - EC2RouteTable
       - EC2VPCGatewayAttachment
+      - EC2RouteTable
     Properties:
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref EC2InternetGateway
       RouteTableId: !Ref EC2RouteTable
 
+  EC2RouteTable2:
+    Type: AWS::EC2::RouteTable
+    DependsOn:
+      - EC2VPC
+      - EC2RouteTable
+      - EC2Route
+    Properties:
+      VpcId: !Ref EC2VPC
+      Tags:
+        - Key: Name
+          Value: !Sub cloud-asm1-rtb-public1-${AWS::Region}b
+
+  EC2Route2:
+    Type: AWS::EC2::Route
+    DependsOn:
+      - EC2VPCGatewayAttachment
+      - EC2RouteTable2
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref EC2InternetGateway
+      RouteTableId: !Ref EC2RouteTable2
 
   ###########
   # Public Subnet
   ###########
 
   EC2Subnet:
-    Type: AWS::EC2::Subnet
-    DependsOn: EC2VPC
-    Properties:
-      VpcId: !Ref EC2VPC
-      CidrBlock: 10.0.1.0/24
-      AvailabilityZone: !Sub ${AWS::Region}b
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: !Sub cloud-asm1-subnet-public-${AWS::Region}b
-
-  EC2SubnetRouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    DependsOn:
-      - EC2RouteTable2
-      - EC2Subnet
-    Properties:
-      RouteTableId: !Ref EC2RouteTable2
-      SubnetId: !Ref EC2Subnet
-
-  EC2Subnet2:
     Type: AWS::EC2::Subnet
     DependsOn: EC2VPC
     Properties:
@@ -114,13 +96,34 @@ Resources:
         - Key: Name
           Value: !Sub cloud-asm1-subnet-public-${AWS::Region}a
 
-  EC2SubnetRouteTableAssociation2:
+  EC2SubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     DependsOn:
       - EC2RouteTable
-      - EC2Subnet2
+      - EC2Subnet
     Properties:
       RouteTableId: !Ref EC2RouteTable
+      SubnetId: !Ref EC2Subnet
+
+  EC2Subnet2:
+    Type: AWS::EC2::Subnet
+    DependsOn: EC2VPC
+    Properties:
+      VpcId: !Ref EC2VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Sub ${AWS::Region}b
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub cloud-asm1-subnet-public-${AWS::Region}b
+
+  EC2SubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn:
+      - EC2RouteTable2
+      - EC2Subnet2
+    Properties:
+      RouteTableId: !Ref EC2RouteTable2
       SubnetId: !Ref EC2Subnet2
 
   ###########
