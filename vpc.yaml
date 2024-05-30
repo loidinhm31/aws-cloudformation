@@ -270,27 +270,27 @@ Resources:
         - Key: target_group_health.unhealthy_state_routing.minimum_healthy_targets.percentage
           Value: "off"
         - Key: deregistration_delay.timeout_seconds
-          Value: 300
+          Value: "300"
         - Key: stickiness.type
           Value: "lb_cookie"
         - Key: stickiness.lb_cookie.duration_seconds
-          Value: 86400
+          Value: "86400"
         - Key: slow_start.duration_seconds
-          Value: 0
+          Value: "0"
         - Key: stickiness.app_cookie.duration_seconds
-          Value: 86400
+          Value: "86400"
         - Key: target_group_health.dns_failover.minimum_healthy_targets.percentage
           Value: "off"
         - Key: load_balancing.cross_zone.enabled
-          Value: use_load_balancer_configuration
+          Value: "use_load_balancer_configuration"
         - Key: load_balancing.algorithm.type
           Value: "round_robin"
         - Key: target_group_health.unhealthy_state_routing.minimum_healthy_targets.count
-          Value: 1
+          Value: "1"
         - Key: stickiness.enabled
           Value: "false"
         - Key: target_group_health.dns_failover.minimum_healthy_targets.count
-          Value: 1
+          Value: "1"
         - Key: load_balancing.algorithm.anomaly_mitigation
           Value: "off"
 
@@ -379,6 +379,37 @@ Resources:
       TerminationPolicies:
         - Default
       ServiceLinkedRoleARN: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling
+      NotificationConfigurations:
+        - TopicARN: !Ref SNSTopic
+          NotificationTypes:
+            - autoscaling:EC2_INSTANCE_LAUNCH
+            - autoscaling:EC2_INSTANCE_LAUNCH_ERROR
+            - autoscaling:EC2_INSTANCE_TERMINATE
+            - autoscaling:EC2_INSTANCE_TERMINATE_ERROR
+      MetricsCollection:
+        - Granularity: 1Minute
+          Metrics:
+            - GroupAndWarmPoolTotalCapacity
+            - GroupTerminatingInstances
+            - GroupDesiredCapacity
+            - WarmPoolWarmedCapacity
+            - GroupInServiceCapacity
+            - GroupStandbyInstances
+            - GroupInServiceInstances
+            - WarmPoolMinSize
+            - GroupPendingInstances
+            - WarmPoolDesiredCapacity
+            - WarmPoolPendingCapacity
+            - GroupMinSize
+            - GroupTotalInstances
+            - GroupStandbyCapacity
+            - GroupTotalCapacity
+            - GroupMaxSize
+            - GroupAndWarmPoolDesiredCapacity
+            - WarmPoolTotalCapacity
+            - GroupPendingCapacity
+            - GroupTerminatingCapacity
+            - WarmPoolTerminatingCapacity
       Tags:
         - Key: Name
           Value: ASM1 Instance
