@@ -15,7 +15,7 @@ Resources:
     Properties:
       CidrBlock: 10.0.0.0/16
       EnableDnsSupport: true
-      EnableDnsHostnames: true
+      EnableDnsHostnames: false
       InstanceTenancy: default
       Tags:
         - Key: Name
@@ -49,7 +49,7 @@ Resources:
       VpcId: !Ref EC2VPC
       Tags:
         - Key: Name
-          Value: !Sub cloud-asm1-rtb-public2-${AWS::Region}a
+          Value: !Sub cloud-asm1-rtb-public-${AWS::Region}a
 
   EC2Route:
     Type: AWS::EC2::Route
@@ -71,7 +71,7 @@ Resources:
       VpcId: !Ref EC2VPC
       Tags:
         - Key: Name
-          Value: !Sub cloud-asm1-rtb-public1-${AWS::Region}b
+          Value: !Sub cloud-asm1-rtb-public-${AWS::Region}b
 
   EC2Route2:
     Type: AWS::EC2::Route
@@ -94,7 +94,7 @@ Resources:
       VpcId: !Ref EC2VPC
       CidrBlock: 10.0.0.0/24
       AvailabilityZone: !Sub ${AWS::Region}a
-      MapPublicIpOnLaunch: true
+      MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
           Value: !Sub cloud-asm1-subnet-public-${AWS::Region}a
@@ -115,7 +115,7 @@ Resources:
       VpcId: !Ref EC2VPC
       CidrBlock: 10.0.1.0/24
       AvailabilityZone: !Sub ${AWS::Region}b
-      MapPublicIpOnLaunch: true
+      MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
           Value: !Sub cloud-asm1-subnet-public-${AWS::Region}b
@@ -130,13 +130,13 @@ Resources:
       SubnetId: !Ref EC2Subnet2
 
   ###########
-  # Security Group Ec2SecurityGroup
+  # Security Group
   ###########
 
   EC2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Access HTTP
+      GroupDescription: Allow HTTP traffic
       GroupName: asm1-security-group
       Tags:
         - Key: Name
@@ -153,14 +153,16 @@ Resources:
 
   EC2SecurityGroup2:
     Type: AWS::EC2::SecurityGroup
+    DependsOn:
+      - EC2SecurityGroup
     Properties:
       GroupDescription: Allow SSH and HTTP requests
       GroupName: asm1-instance-security-group
       VpcId: !Ref EC2VPC
       SecurityGroupIngress:
-        - CidrIp: 0.0.0.0/0
+        - SourceSecurityGroupId: !Ref EC2SecurityGroup
           FromPort: 80
-          IpProtocol: tcp
+          IpProtocol: "tcp"
           ToPort: 80
         - CidrIp: 0.0.0.0/0
           FromPort: 22
@@ -222,6 +224,8 @@ Resources:
 
   EC2LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
+    DependsOn:
+      - EC2SecurityGroup2
     Properties:
       LaunchTemplateName: asm1-launch-template
       LaunchTemplateData:
@@ -236,13 +240,18 @@ Resources:
             echo "<html><h1>Cloud Assignment</h1></html>" > /var/www/html/index.html
         KeyName: "vockey"
         NetworkInterfaces:
-          - DeviceIndex: 0
+          - AssociatePublicIpAddress: true
+            DeviceIndex: 0
             Groups:
               - !Ref EC2SecurityGroup2
         ImageId: !Ref AmiId
         InstanceType: t2.micro
         Monitoring:
           Enabled: true
+        MetadataOptions:
+          HttpEndpoint: "enabled"
+          HttpPutResponseHopLimit: 2
+          HttpTokens: "required"
 
   ###########
   # Target Group
@@ -311,7 +320,7 @@ Resources:
         - !Ref EC2Subnet
         - !Ref EC2Subnet2
       SecurityGroups:
-        - !Ref EC2SecurityGroup2
+        - !Ref EC2SecurityGroup
       IpAddressType: ipv4
       LoadBalancerAttributes:
         - Key: access_logs.s3.enabled
@@ -357,6 +366,9 @@ Resources:
 
   AutoScalingAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn:
+      - SNSTopic
+      - EC2LaunchTemplate
     Properties:
       AutoScalingGroupName: asm1-auto-scaling-group
       LaunchTemplate:
